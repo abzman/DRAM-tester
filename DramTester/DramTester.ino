@@ -1,31 +1,31 @@
 //Tweaked by Evan Allen October 27th 2020
 //added 4116 support, extra input for device selection, and LEDs are now active high
 
-#define DI          15  // PC1
-#define DO           8  // PB0
-#define CAS          9  // PB1
-#define RAS         17  // PC3
-#define WE          16  // PC2
+#define DI 15   // PC1
+#define DO 8    // PB0
+#define CAS 9   // PB1
+#define RAS 17  // PC3
+#define WE 16   // PC2
 
-#define XA0         18  // PC4
-#define XA1          2  // PD2
-#define XA2         19  // PC5
-#define XA3          6  // PD6
-#define XA4          5  // PD5
-#define XA5          4  // PD4
-#define XA6          7  // PD7
-#define XA7          3  // PD3
-#define XA8         14  // PC0
+#define XA0 18  // PC4
+#define XA1 2   // PD2
+#define XA2 19  // PC5
+#define XA3 6   // PD6
+#define XA4 5   // PD5
+#define XA5 4   // PD4
+#define XA6 7   // PD7
+#define XA7 3   // PD3
+#define XA8 14  // PC0
 
-#define R_LED       13  // PB5 active high
-#define G_LED       12  // PB4 active high
-#define Mode_0      11  // PB3 jumper pulls down
-#define Mode_1      10  // PB2 jumper pulls down
+#define R_LED 13   // PB5 active high
+#define G_LED 12   // PB4 active high
+#define Mode_0 11  // PB3 jumper pulls down
+#define Mode_1 10  // PB2 jumper pulls down
 
-#define RXD          0  // PD0
-#define TXD          1  // PD1
+#define RXD 0  // PD0
+#define TXD 1  // PD1
 
-#define BUS_SIZE     9
+#define BUS_SIZE 9
 
 volatile int bus_size;
 
@@ -50,7 +50,7 @@ void writeAddress(unsigned int r, unsigned int c, int v) {
   digitalWrite(WE, LOW);
 
   /* val */
-  digitalWrite(DI, (v & 1)? HIGH : LOW);
+  digitalWrite(DI, (v & 1) ? HIGH : LOW);
 
   /* col */
   setBus(c);
@@ -81,11 +81,10 @@ int readAddress(unsigned int r, unsigned int c) {
   return ret;
 }
 
-void error(int r, int c)
-{
+void error(int r, int c) {
   unsigned long a = ((unsigned long)c << bus_size) + r;
   digitalWrite(R_LED, HIGH);
-  digitalWrite(G_LED, LOW);
+  green(LOW);
   interrupts();
   Serial.print(" FAILED $");
   Serial.println(a, HEX);
@@ -94,10 +93,9 @@ void error(int r, int c)
     ;
 }
 
-void ok(void)
-{
-  digitalWrite(R_LED, LOW);
-  digitalWrite(G_LED, HIGH);
+void ok(void) {
+  red(LOW);
+  green(HIGH);
   interrupts();
   Serial.println(" OK!");
   Serial.flush();
@@ -105,40 +103,33 @@ void ok(void)
     ;
 }
 
-void blink(void)
-{
-  digitalWrite(G_LED, LOW);
-  digitalWrite(R_LED, LOW);
-  delay(1000);
-  digitalWrite(R_LED, HIGH);
-  digitalWrite(G_LED, HIGH);
-}
-
 void green(int v) {
   digitalWrite(G_LED, v);
 }
 
+void red(int v) {
+  digitalWrite(R_LED, v);
+}
 void fill(int v) {
   int r, c, g = 0;
   v %= 1;
-  for (c = 0; c < (1<<bus_size); c++) {
-    green(g? HIGH : LOW);
-    for (r = 0; r < (1<<bus_size); r++) {
+  for (c = 0; c < (1 << bus_size); c++) {
+    green(g ? HIGH : LOW);
+    for (r = 0; r < (1 << bus_size); r++) {
       writeAddress(r, c, v);
       if (v != readAddress(r, c))
         error(r, c);
     }
     g ^= 1;
   }
-  blink();
 }
 
 void fillx(int v) {
   int r, c, g = 0;
   v %= 1;
-  for (c = 0; c < (1<<bus_size); c++) {
-    green(g? HIGH : LOW);
-    for (r = 0; r < (1<<bus_size); r++) {
+  for (c = 0; c < (1 << bus_size); c++) {
+    green(g ? HIGH : LOW);
+    for (r = 0; r < (1 << bus_size); r++) {
       writeAddress(r, c, v);
       if (v != readAddress(r, c))
         error(r, c);
@@ -146,7 +137,6 @@ void fillx(int v) {
     }
     g ^= 1;
   }
-  blink();
 }
 
 void setup() {
@@ -178,44 +168,60 @@ void setup() {
   digitalWrite(RAS, HIGH);
   digitalWrite(CAS, HIGH);
 
-  digitalWrite(R_LED, LOW);
-  digitalWrite(G_LED, LOW);
+  green(LOW);
+  red(LOW);
 
   if ((digitalRead(Mode_0) == 1) && (digitalRead(Mode_1) == 1)) {
     /* neither jumper set - 41256 */
     bus_size = BUS_SIZE;
     Serial.print("256Kx1 ");
-  } else if ((digitalRead(Mode_0) == 0) && (digitalRead(Mode_1) == 1)){
+  } else if ((digitalRead(Mode_0) == 0) && (digitalRead(Mode_1) == 1)) {
     /* one jumper set - 4164 */
     bus_size = BUS_SIZE - 1;
     Serial.print("64Kx1 ");
-  } else if ((digitalRead(Mode_0) == 1) && (digitalRead(Mode_1) == 0)){
+  } else if ((digitalRead(Mode_0) == 1) && (digitalRead(Mode_1) == 0)) {
     /* other jumper set - 4164 */
     bus_size = BUS_SIZE - 1;
     Serial.print("64Kx1 ");
-  } else if ((digitalRead(Mode_0) == 0) && (digitalRead(Mode_1) == 0)){
+  } else if ((digitalRead(Mode_0) == 0) && (digitalRead(Mode_1) == 0)) {
     /* both jumpers set - 4116 */
     bus_size = BUS_SIZE - 2;
     Serial.print("16Kx1 ");
   }
   Serial.flush();
 
-  digitalWrite(R_LED, HIGH);
-  digitalWrite(G_LED, HIGH);
+  green(HIGH);
+  red(HIGH);
 
   noInterrupts();
   for (i = 0; i < (1 << BUS_SIZE); i++) {
     digitalWrite(RAS, LOW);
     digitalWrite(RAS, HIGH);
   }
-  digitalWrite(R_LED, LOW);
-  digitalWrite(G_LED, LOW);
+  green(LOW);
+  red(LOW);
 }
 
 void loop() {
-  interrupts(); Serial.print("."); Serial.flush(); noInterrupts(); fillx(0);
-  interrupts(); Serial.print("."); Serial.flush(); noInterrupts(); fillx(1);
-  interrupts(); Serial.print("."); Serial.flush(); noInterrupts(); fill(0);
-  interrupts(); Serial.print("."); Serial.flush(); noInterrupts(); fill(1);
+  interrupts();
+  Serial.print(".");
+  Serial.flush();
+  noInterrupts();
+  fillx(0);
+  interrupts();
+  Serial.print(".");
+  Serial.flush();
+  noInterrupts();
+  fillx(1);
+  interrupts();
+  Serial.print(".");
+  Serial.flush();
+  noInterrupts();
+  fill(0);
+  interrupts();
+  Serial.print(".");
+  Serial.flush();
+  noInterrupts();
+  fill(1);
   ok();
 }
